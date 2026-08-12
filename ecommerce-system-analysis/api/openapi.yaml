@@ -1,0 +1,329 @@
+openapi: 3.0.3
+info:
+  title: StyleShop API
+  description: >
+    API для модулей каталога, корзины, оформления заказа, оплаты и возвратов
+    интернет-магазина одежды. Pet-проект системного аналитика.
+  version: 1.0.0
+servers:
+  - url: https://api.styleshop.example.com/v1
+
+tags:
+  - name: Catalog
+  - name: Cart
+  - name: Orders
+  - name: Payments
+  - name: Returns
+
+paths:
+  /products:
+    get:
+      tags: [Catalog]
+      summary: Получить список товаров с фильтрацией
+      parameters:
+        - name: category_id
+          in: query
+          schema: { type: integer }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+      responses:
+        '200':
+          description: Список товаров
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Product' }
+
+  /products/{productId}:
+    get:
+      tags: [Catalog]
+      summary: Получить карточку товара
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Карточка товара
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cart:
+    get:
+      tags: [Cart]
+      summary: Получить содержимое корзины текущего пользователя
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Текущая корзина
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cart' }
+
+  /cart/items:
+    post:
+      tags: [Cart]
+      summary: Добавить товар в корзину
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id, quantity]
+              properties:
+                product_id: { type: integer }
+                quantity: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Товар добавлен
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cart' }
+        '409':
+          description: Недостаточно товара на складе
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /cart/items/{itemId}:
+    delete:
+      tags: [Cart]
+      summary: Удалить товар из корзины
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: Удалено успешно }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /orders:
+    post:
+      tags: [Orders]
+      summary: Оформить заказ на основе текущей корзины
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shipping_address]
+              properties:
+                shipping_address: { type: string }
+                comment: { type: string }
+      responses:
+        '201':
+          description: Заказ создан, товар зарезервирован на 15 минут
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '409':
+          description: Один или несколько товаров закончились на складе
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /orders/{orderId}:
+    get:
+      tags: [Orders]
+      summary: Получить статус и детали заказа
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Детали заказа
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /orders/{orderId}/cancel:
+    post:
+      tags: [Orders]
+      summary: Отменить заказ (доступно до статуса "packing")
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Заказ отменён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '409':
+          description: >
+            Заказ нельзя отменить — уже передан на сборку/отгружен
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /payments/webhook:
+    post:
+      tags: [Payments]
+      summary: Webhook от платёжного провайдера о статусе оплаты
+      description: >
+        Обработка идемпотентна по provider_transaction_id — повторный webhook
+        с тем же ID не приводит к повторному списанию/зачислению.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_id, provider_transaction_id, status]
+              properties:
+                order_id: { type: integer }
+                provider_transaction_id: { type: string }
+                status: { type: string, enum: [success, failed] }
+      responses:
+        '200': { description: Webhook обработан }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /returns:
+    post:
+      tags: [Returns]
+      summary: Оформить возврат по позиции заказа
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_item_id, reason]
+              properties:
+                order_item_id: { type: integer }
+                reason: { type: string }
+      responses:
+        '201':
+          description: Заявка на возврат создана
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReturnRequest' }
+        '400':
+          description: >
+            Окно возврата истекло (14 дней с момента доставки)
+            или заказ ещё не доставлен
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /returns/{returnId}:
+    get:
+      tags: [Returns]
+      summary: Получить статус возврата
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: returnId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Статус возврата
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReturnRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema: { type: integer }
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema: { type: integer }
+
+  responses:
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Product:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        sku: { type: string }
+        price: { type: number, format: float }
+        category_id: { type: integer }
+        quantity_available: { type: integer }
+
+    Cart:
+      type: object
+      properties:
+        id: { type: integer }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              item_id: { type: integer }
+              product_id: { type: integer }
+              quantity: { type: integer }
+              price: { type: number }
+        total: { type: number }
+
+    Order:
+      type: object
+      properties:
+        id: { type: integer }
+        status:
+          type: string
+          enum: [created, pending_payment, paid, packing, shipped, delivered, cancelled]
+        total_amount: { type: number }
+        created_at: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product_id: { type: integer }
+              quantity: { type: integer }
+              price_at_purchase: { type: number }
+
+    ReturnRequest:
+      type: object
+      properties:
+        id: { type: integer }
+        order_item_id: { type: integer }
+        reason: { type: string }
+        status:
+          type: string
+          enum: [requested, received, approved, rejected]
+        requested_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time, nullable: true }
+
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
