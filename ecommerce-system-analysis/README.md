@@ -13,7 +13,6 @@ Pet-проект системного аналитика: полный цикл 
 | Vision & Scope | [`docs/01_vision_scope.md`](docs/01_vision_scope.md) |
 | BPMN As Is | [`docs/bpmn_as_is.png`](docs/bpmn_as_is.png) |
 | BPMN To Be | [`docs/bpmn_to_be.png`](docs/bpmn_to_be.png) |
-| State diagram (статусы заказа) | [`docs/state_diagram.png`](docs/state_diagram.png) |
 | ERD (модель данных) | [`docs/erd.drawio.png`](docs/erd.drawio.png) |
 | SQL-схема | [`sql/01_schema.sql`](sql/01_schema.sql) |
 | SQL-запросы для отчётности | [`sql/03_reporting_queries.sql`](sql/03_reporting_queries.sql) |
