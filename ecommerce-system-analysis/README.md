@@ -17,7 +17,7 @@ Pet-проект системного аналитика: полный цикл 
 | SQL-схема | [`sql/01_schema.sql`](sql/01_schema.sql) |
 | SQL-запросы для отчётности | [`sql/03_reporting_queries.sql`](sql/03_reporting_queries.sql) |
 | Результаты запросов на тестовых данных | [`docs/04_sql_results.md`](docs/04_sql_results.md) |
-| OpenAPI-спецификация | [`api/openapi.yaml`](api/openapi.yaml) |
+| OpenAPI-спецификация | [`api/openapi.pdf`](api/openapi.pdf) |
 | User Stories + MoSCoW | [`docs/05_user_stories.md`](docs/05_user_stories.md) |
 | Gherkin-сценарии | [`docs/06_order_returns.feature`](docs/06_order_returns.feature) |
 | Wireframes ключевых экранов | [`wireframes/`](wireframes/) |
