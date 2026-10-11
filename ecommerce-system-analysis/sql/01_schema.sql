@@ -1,5 +1,4 @@
--- Схема БД для pet-проекта "StyleShop"
--- Диалект: SQLite (совместимо с PostgreSQL с минимальными правками типов)
+
 
 CREATE TABLE users (
     id INTEGER PRIMARY KEY,
